@@ -20,7 +20,7 @@ pub fn get_loan_input() -> Result<LoanInput, String> {
     let start_date_prompt = "Start date (YYYY-MM-DD):";
     let mut start_date_str = get_console_input(start_date_prompt)?;
     let start_date = loop {
-        match parse_start_date(&start_date_str) {
+        match parse_date(&start_date_str) {
             Ok(start_date) => break start_date,
             Err(e) => {
                 println!("{}", e);
@@ -103,6 +103,15 @@ pub fn get_loan_input() -> Result<LoanInput, String> {
     })
 }
 
+pub fn get_accrual_date() -> Result<Option<NaiveDate>, String> {
+    let prompt = "Accrual date (YYYY-MM-DD. Empty for end of loan):";
+    let accrual_date_str = get_console_input(prompt)?;
+    if accrual_date_str.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(parse_date(&accrual_date_str)?))
+}
+
 fn parse_input_into_type<T: FromStr>(input: &str) -> Result<T, T::Err> {
     input.trim().parse()
 }
@@ -116,19 +125,19 @@ fn get_console_input(prompt: &str) -> Result<String, String> {
     Ok(input)
 }
 
-fn parse_start_date(start_date: &str) -> Result<NaiveDate, String> {
-    let start_date: NaiveDate = match parse_input_into_type(&start_date) {
+pub fn parse_date(date: &str) -> Result<NaiveDate, String> {
+    let date: NaiveDate = match parse_input_into_type(&date) {
         Ok(parsed_val) => parsed_val,
         Err(_) => {
             return Err("* Please enter a valid date in the future".to_string());
         }
     };
 
-    if start_date < chrono::Utc::now().date_naive() {
+    if date < chrono::Utc::now().date_naive() {
         return Err("* Start date cannot be in the past".to_string());
     }
 
-    Ok(start_date)
+    Ok(date)
 }
 
 fn parse_end_date(end_date: &str, start_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -171,19 +180,19 @@ mod tests {
 
     #[test]
     fn test_parse_start_date_valid() {
-        let start_date = parse_start_date("2025-01-01").expect("Failed to parse start date");
+        let start_date = parse_date("2025-01-01").expect("Failed to parse start date");
         assert!(start_date > chrono::Utc::now().date_naive());
     }
 
     #[test]
     fn test_parse_start_date_past() {
-        let result = parse_start_date("2024-01-01");
+        let result = parse_date("2024-01-01");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_start_date_invalid_date() {
-        let result = parse_start_date("202-01");
+        let result = parse_date("202-01");
         assert!(result.is_err());
     }
 
