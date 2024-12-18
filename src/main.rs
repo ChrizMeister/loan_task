@@ -12,7 +12,7 @@ fn main() -> Result<(), String> {
     let total_interest = get_total_interest(&loan_input);
     let loan_duration_years = loan_input.end_date.year() - loan_input.start_date.year();
     println!(
-        "After {} years you will pay {} {} in total interest",
+        "After {} years you will pay {:.2} {} in total interest",
         loan_duration_years,
         total_interest,
         loan_input.currency.code()

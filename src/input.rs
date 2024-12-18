@@ -126,13 +126,13 @@ fn get_currency() -> Result<Currency, String> {
 fn get_interest_rate() -> Result<Decimal, String> {
     loop {
         let mut interest_rate = String::new();
-        println!("Interest rate:");
+        println!("Interest rate (XX.XX%):");
         std::io::stdin()
             .read_line(&mut interest_rate)
             .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
 
-        match parse_input_into_type(&interest_rate) {
-            Ok(parsed_val) => return Ok(parsed_val),
+        match parse_input_into_type::<Decimal>(&interest_rate) {
+            Ok(parsed_val) => return Ok(parsed_val / Decimal::from(100)),
             Err(_) => {
                 println!("* Please enter a valid decimal number");
                 continue;
@@ -144,13 +144,13 @@ fn get_interest_rate() -> Result<Decimal, String> {
 fn get_margin() -> Result<Decimal, String> {
     loop {
         let mut margin = String::new();
-        println!("Margin:");
+        println!("Margin (XX.XX%):");
         std::io::stdin()
             .read_line(&mut margin)
             .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
 
-        match parse_input_into_type(&margin) {
-            Ok(parsed_val) => return Ok(parsed_val),
+        match parse_input_into_type::<Decimal>(&margin) {
+            Ok(parsed_val) => return Ok(parsed_val / Decimal::from(100)),
             Err(_) => {
                 println!("* Please enter a valid decimal number");
                 continue;
