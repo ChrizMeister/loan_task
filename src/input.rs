@@ -5,6 +5,7 @@ use iso_currency::Currency;
 use rust_decimal::Decimal;
 
 pub struct LoanInput {
+    pub id: usize,
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
     pub amount: Decimal,
@@ -13,87 +14,193 @@ pub struct LoanInput {
     pub margin: Decimal,
 }
 
-pub fn get_loan_input() -> Result<LoanInput, String> {
-    println!("Please enter the following details for the loan:");
+pub enum CliChoice {
+    AddLoan,
+    EditLoan,
+    Exit,
+}
+
+impl From<usize> for CliChoice {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => CliChoice::AddLoan,
+            1 => CliChoice::EditLoan,
+            2 => CliChoice::Exit,
+            _ => panic!("Invalid CLI choice"),
+        }
+    }
+}
+
+pub fn cli_choices() -> Result<CliChoice, String> {
+    let options = ["Add loan", "Edit loan", "Exit"];
+    let option = dialoguer::Select::new()
+        .with_prompt("Please select an option:")
+        .items(&options)
+        .interact()
+        .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
+    Ok(CliChoice::from(option))
+}
+
+pub fn get_loan_input(
+    id: usize,
+    existing_loan_input: Option<&LoanInput>,
+) -> Result<LoanInput, String> {
+    if existing_loan_input.is_some() {
+        println!(
+            "Please enter the following details for the loan (leave blank to use existing values):"
+        );
+    } else {
+        println!("Please enter the following details for the loan:");
+    }
 
     // Start date
-    let start_date_prompt = "Start date (YYYY-MM-DD):";
-    let mut start_date_str = get_console_input(start_date_prompt)?;
+    let mut start_date_prompt = "Start date (YYYY-MM-DD)".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        start_date_prompt = format!(
+            "{} (default: {})",
+            start_date_prompt, existing_loan_input.start_date
+        );
+    }
+    let mut start_date_str = get_console_input(&start_date_prompt)?;
     let start_date = loop {
+        if start_date_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.start_date;
+            }
+        }
         match parse_date(&start_date_str) {
             Ok(start_date) => break start_date,
             Err(e) => {
                 println!("{}", e);
-                start_date_str = get_console_input(start_date_prompt)?;
+                start_date_str = get_console_input(&start_date_prompt)?;
             }
         }
     };
 
     // End date
-    let end_date_prompt = "End date (YYYY-MM-DD):";
-    let mut end_date_str = get_console_input(end_date_prompt)?;
+    let mut end_date_prompt = "End date (YYYY-MM-DD)".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        end_date_prompt = format!(
+            "{} (default: {})",
+            end_date_prompt, existing_loan_input.end_date
+        );
+    }
+    let mut end_date_str = get_console_input(&end_date_prompt)?;
     let end_date = loop {
+        if end_date_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.end_date;
+            }
+        }
         match parse_end_date(&end_date_str, start_date) {
             Ok(end_date) => break end_date,
             Err(e) => {
                 println!("{}", e);
-                end_date_str = get_console_input(end_date_prompt)?;
+                end_date_str = get_console_input(&end_date_prompt)?;
             }
         }
     };
 
     // Amount
-    let amount_prompt = "Loan amount (XXXX.XX):";
-    let mut amount_str = get_console_input(amount_prompt)?;
+    let mut amount_prompt = "Loan amount (XXXX.XX)".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        amount_prompt = format!(
+            "{} (default: {})",
+            amount_prompt, existing_loan_input.amount
+        );
+    }
+    let mut amount_str = get_console_input(&amount_prompt)?;
     let amount = loop {
+        if amount_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.amount;
+            }
+        }
         match parse_decimal(&amount_str) {
             Ok(amount) => break amount,
             Err(e) => {
                 println!("{}", e);
-                amount_str = get_console_input(amount_prompt)?;
+                amount_str = get_console_input(&amount_prompt)?;
             }
         }
     };
 
     // Currency
-    let currency_prompt = "Currency (USD, EUR, GBP, etc.):";
-    let mut currency_str = get_console_input(currency_prompt)?;
+    let mut currency_prompt = "Currency (USD, EUR, GBP, etc.)".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        currency_prompt = format!(
+            "{} (default: {})",
+            currency_prompt,
+            existing_loan_input.currency.code()
+        );
+    }
+    let mut currency_str = get_console_input(&currency_prompt)?;
     let currency = loop {
+        if currency_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.currency;
+            }
+        }
         match parse_currency(&currency_str) {
             Ok(currency) => break currency,
             Err(e) => {
                 println!("{}", e);
-                currency_str = get_console_input(currency_prompt)?;
+                currency_str = get_console_input(&currency_prompt)?;
             }
         }
     };
 
     // Interest rate
-    let interest_rate_prompt = "Interest rate (XX.XX%):";
-    let mut interest_rate_str = get_console_input(interest_rate_prompt)?;
+    let mut interest_rate_prompt = "Interest rate (XX.XX)%".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        interest_rate_prompt = format!(
+            "{} (default: {:.2})",
+            interest_rate_prompt,
+            existing_loan_input.interest_rate * Decimal::from(100)
+        );
+    }
+    let mut interest_rate_str = get_console_input(&interest_rate_prompt)?;
     let interest_rate = loop {
+        if interest_rate_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.interest_rate;
+            }
+        }
         match parse_decimal(&interest_rate_str) {
             Ok(interest_rate) => break interest_rate / Decimal::from(100),
             Err(e) => {
                 println!("{}", e);
-                interest_rate_str = get_console_input(interest_rate_prompt)?;
+                interest_rate_str = get_console_input(&interest_rate_prompt)?;
             }
         }
     };
 
     // Margin
-    let margin_prompt = "Margin (XX.XX%):";
-    let mut margin_str = get_console_input(margin_prompt)?;
+    let mut margin_prompt = "Margin (XX.XX)%".to_string();
+    if let Some(existing_loan_input) = existing_loan_input {
+        margin_prompt = format!(
+            "{} (default: {:.2})",
+            margin_prompt,
+            existing_loan_input.margin * Decimal::from(100)
+        );
+    }
+    let mut margin_str = get_console_input(&margin_prompt)?;
     let margin = loop {
+        if margin_str == "\n" {
+            if let Some(existing_loan_input) = existing_loan_input {
+                break existing_loan_input.margin;
+            }
+        }
         match parse_decimal(&margin_str) {
             Ok(margin) => break margin / Decimal::from(100),
             Err(e) => {
                 println!("{}", e);
-                margin_str = get_console_input(margin_prompt)?;
+                margin_str = get_console_input(&margin_prompt)?;
             }
         }
     };
     Ok(LoanInput {
+        id,
         start_date,
         end_date,
         amount,
@@ -104,9 +211,9 @@ pub fn get_loan_input() -> Result<LoanInput, String> {
 }
 
 pub fn get_accrual_date() -> Result<Option<NaiveDate>, String> {
-    let prompt = "Accrual date (YYYY-MM-DD. Empty for end of loan):";
+    let prompt = "Accrual date (YYYY-MM-DD. Leave empty for end of loan):";
     let accrual_date_str = get_console_input(prompt)?;
-    if accrual_date_str.is_empty() {
+    if accrual_date_str == "\n" {
         return Ok(None);
     }
     Ok(Some(parse_date(&accrual_date_str)?))
@@ -116,7 +223,7 @@ fn parse_input_into_type<T: FromStr>(input: &str) -> Result<T, T::Err> {
     input.trim().parse()
 }
 
-fn get_console_input(prompt: &str) -> Result<String, String> {
+pub fn get_console_input(prompt: &str) -> Result<String, String> {
     let mut input = String::new();
     println!("{}", prompt);
     std::io::stdin()
