@@ -15,12 +15,84 @@ pub struct LoanInput {
 
 pub fn get_loan_input() -> Result<LoanInput, String> {
     println!("Please enter the following details for the loan:");
-    let start_date = get_start_date()?;
-    let end_date = get_end_date(start_date)?;
-    let amount = get_loan_amount()?;
-    let currency = get_currency()?;
-    let interest_rate = get_interest_rate()?;
-    let margin = get_margin()?;
+
+    // Start date
+    let start_date_prompt = "Start date (YYYY-MM-DD):";
+    let mut start_date_str = get_console_input(start_date_prompt)?;
+    let start_date = loop {
+        match parse_start_date(&start_date_str) {
+            Ok(start_date) => break start_date,
+            Err(e) => {
+                println!("{}", e);
+                start_date_str = get_console_input(start_date_prompt)?;
+            }
+        }
+    };
+
+    // End date
+    let end_date_prompt = "End date (YYYY-MM-DD):";
+    let mut end_date_str = get_console_input(end_date_prompt)?;
+    let end_date = loop {
+        match parse_end_date(&end_date_str, start_date) {
+            Ok(end_date) => break end_date,
+            Err(e) => {
+                println!("{}", e);
+                end_date_str = get_console_input(end_date_prompt)?;
+            }
+        }
+    };
+
+    // Amount
+    let amount_prompt = "Loan amount (XXXX.XX):";
+    let mut amount_str = get_console_input(amount_prompt)?;
+    let amount = loop {
+        match parse_decimal(&amount_str) {
+            Ok(amount) => break amount,
+            Err(e) => {
+                println!("{}", e);
+                amount_str = get_console_input(amount_prompt)?;
+            }
+        }
+    };
+
+    // Currency
+    let currency_prompt = "Currency (USD, EUR, GBP, etc.):";
+    let mut currency_str = get_console_input(currency_prompt)?;
+    let currency = loop {
+        match parse_currency(&currency_str) {
+            Ok(currency) => break currency,
+            Err(e) => {
+                println!("{}", e);
+                currency_str = get_console_input(currency_prompt)?;
+            }
+        }
+    };
+
+    // Interest rate
+    let interest_rate_prompt = "Interest rate (XX.XX%):";
+    let mut interest_rate_str = get_console_input(interest_rate_prompt)?;
+    let interest_rate = loop {
+        match parse_decimal(&interest_rate_str) {
+            Ok(interest_rate) => break interest_rate / Decimal::from(100),
+            Err(e) => {
+                println!("{}", e);
+                interest_rate_str = get_console_input(interest_rate_prompt)?;
+            }
+        }
+    };
+
+    // Margin
+    let margin_prompt = "Margin (XX.XX%):";
+    let mut margin_str = get_console_input(margin_prompt)?;
+    let margin = loop {
+        match parse_decimal(&margin_str) {
+            Ok(margin) => break margin / Decimal::from(100),
+            Err(e) => {
+                println!("{}", e);
+                margin_str = get_console_input(margin_prompt)?;
+            }
+        }
+    };
     Ok(LoanInput {
         start_date,
         end_date,
@@ -35,126 +107,121 @@ fn parse_input_into_type<T: FromStr>(input: &str) -> Result<T, T::Err> {
     input.trim().parse()
 }
 
-fn get_start_date() -> Result<NaiveDate, String> {
-    loop {
-        let mut start_date = String::new();
-        println!("Start date (YYYY-MM-DD):");
-        std::io::stdin()
-            .read_line(&mut start_date)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
+fn get_console_input(prompt: &str) -> Result<String, String> {
+    let mut input = String::new();
+    println!("{}", prompt);
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
+    Ok(input)
+}
 
-        let start_date: NaiveDate = match parse_input_into_type(&start_date) {
-            Ok(parsed_val) => parsed_val,
-            Err(_) => {
-                println!("* Please enter a valid date in the future");
-                continue;
-            }
-        };
-
-        if start_date < chrono::Utc::now().date_naive() {
-            println!("* Start date cannot be in the past");
-            continue;
+fn parse_start_date(start_date: &str) -> Result<NaiveDate, String> {
+    let start_date: NaiveDate = match parse_input_into_type(&start_date) {
+        Ok(parsed_val) => parsed_val,
+        Err(_) => {
+            return Err("* Please enter a valid date in the future".to_string());
         }
+    };
 
-        return Ok(start_date);
+    if start_date < chrono::Utc::now().date_naive() {
+        return Err("* Start date cannot be in the past".to_string());
     }
+
+    Ok(start_date)
 }
 
-fn get_end_date(start_date: NaiveDate) -> Result<NaiveDate, String> {
-    loop {
-        let mut end_date = String::new();
-        println!("End date (YYYY-MM-DD):");
-        std::io::stdin()
-            .read_line(&mut end_date)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
-
-        let end_date: NaiveDate = match parse_input_into_type(&end_date) {
-            Ok(parsed_val) => parsed_val,
-            Err(_) => {
-                println!("* Please enter a valid date in the future");
-                continue;
-            }
-        };
-
-        if end_date <= start_date {
-            println!("* The end date of the loan must be after the start date");
-            continue;
+fn parse_end_date(end_date: &str, start_date: NaiveDate) -> Result<NaiveDate, String> {
+    let end_date: NaiveDate = match parse_input_into_type(&end_date) {
+        Ok(parsed_val) => parsed_val,
+        Err(_) => {
+            return Err("* Please enter a valid date in the future".to_string());
         }
+    };
 
-        return Ok(end_date);
+    if end_date <= start_date {
+        return Err("* The end date of the loan must be after the start date".to_string());
     }
+
+    Ok(end_date)
 }
 
-fn get_loan_amount() -> Result<Decimal, String> {
-    loop {
-        let mut loan_amount = String::new();
-        println!("Loan amount:");
-        std::io::stdin()
-            .read_line(&mut loan_amount)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
-
-        let loan_amount: Decimal = match parse_input_into_type(&loan_amount) {
-            Ok(parsed_val) => parsed_val,
-            Err(_) => {
-                println!("* Please enter a valid number");
-                continue;
-            }
-        };
-
-        return Ok(loan_amount);
-    }
+fn parse_decimal(decimal: &str) -> Result<Decimal, String> {
+    let decimal_value: Decimal = match parse_input_into_type(&decimal) {
+        Ok(parsed_val) => parsed_val,
+        Err(_) => {
+            return Err("* Please enter a valid number".to_string());
+        }
+    };
+    Ok(decimal_value)
 }
 
-fn get_currency() -> Result<Currency, String> {
-    loop {
-        let mut currency = String::new();
-        println!("Currency:");
-        std::io::stdin()
-            .read_line(&mut currency)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
-
-        match Currency::from_code(currency.trim()) {
-            Some(currency) => return Ok(currency),
-            None => {
-                println!("* Please enter a valid currency");
-                continue;
-            }
+fn parse_currency(currency: &str) -> Result<Currency, String> {
+    match Currency::from_code(currency.trim()) {
+        Some(currency) => return Ok(currency),
+        None => {
+            return Err("* Please enter a valid currency".to_string());
         }
     }
 }
 
-fn get_interest_rate() -> Result<Decimal, String> {
-    loop {
-        let mut interest_rate = String::new();
-        println!("Interest rate (XX.XX%):");
-        std::io::stdin()
-            .read_line(&mut interest_rate)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        match parse_input_into_type::<Decimal>(&interest_rate) {
-            Ok(parsed_val) => return Ok(parsed_val / Decimal::from(100)),
-            Err(_) => {
-                println!("* Please enter a valid decimal number");
-                continue;
-            }
-        };
+    #[test]
+    fn test_parse_start_date_valid() {
+        let start_date = parse_start_date("2025-01-01").expect("Failed to parse start date");
+        assert!(start_date > chrono::Utc::now().date_naive());
     }
-}
 
-fn get_margin() -> Result<Decimal, String> {
-    loop {
-        let mut margin = String::new();
-        println!("Margin (XX.XX%):");
-        std::io::stdin()
-            .read_line(&mut margin)
-            .map_err(|e| format!("The application encountered an error reading the input: {e}"))?;
+    #[test]
+    fn test_parse_start_date_past() {
+        let result = parse_start_date("2024-01-01");
+        assert!(result.is_err());
+    }
 
-        match parse_input_into_type::<Decimal>(&margin) {
-            Ok(parsed_val) => return Ok(parsed_val / Decimal::from(100)),
-            Err(_) => {
-                println!("* Please enter a valid decimal number");
-                continue;
-            }
-        };
+    #[test]
+    fn test_parse_start_date_invalid_date() {
+        let result = parse_start_date("202-01");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_end_date_valid() {
+        let start_date = NaiveDate::from_str("2025-01-01").expect("Failed to parse start date");
+        let end_date = parse_end_date("2026-01-01", start_date).expect("Failed to parse end date");
+        assert!(end_date > start_date);
+    }
+
+    #[test]
+    fn test_parse_end_date_invalid() {
+        let start_date = NaiveDate::from_str("2025-01-01").expect("Failed to parse start date");
+        let result = parse_end_date("2024-01-01", start_date);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_decimal_valid() {
+        let decimal = parse_decimal("1000.00").expect("Failed to parse decimal");
+        assert_eq!(decimal, Decimal::from(1000));
+    }
+
+    #[test]
+    fn test_parse_decimal_invalid() {
+        let result = parse_decimal("1a00.00b");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_currency_valid() {
+        let currency = parse_currency("USD").expect("Failed to parse currency");
+        assert_eq!(currency, Currency::USD);
+    }
+
+    #[test]
+    fn test_parse_currency_invalid() {
+        let result = parse_currency("invalid currency");
+        assert!(result.is_err());
     }
 }
